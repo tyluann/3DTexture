@@ -128,6 +128,12 @@
   <ItemGroup>
     <ClCompile Include="..\src\color_adjustment.cpp" />
     <ClCompile Include="..\src\demo.cpp" />
+    <ClCompile Include="..\src\helper_impl.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\color_adjustment.h" />
+    <ClInclude Include="..\src\common.h" />
+    <ClInclude Include="..\src\helper.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
