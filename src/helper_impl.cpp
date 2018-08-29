@@ -1,4 +1,4 @@
-#include "helper.h"
+#include "texture.h"
 
 #include <unordered_map>
 #include <algorithm>
@@ -8,6 +8,7 @@
 #include <iostream>
 #include <io.h>
 #include <queue>
+#include <iomanip>
 
 
 int read_obj_model(std::string filename, Model& model) {
@@ -39,7 +40,7 @@ int read_obj_model(std::string filename, Model& model) {
 			line = line.substr(space + 1, -1);
 			
 
-			loop(i, 3){ // 3d points index
+			tex_loop(i, 3){ // 3d points index
 				space = line.find_first_of(' ');
 				std::string p = line.substr(0, space);
 				size_t slash = 0;
@@ -86,7 +87,7 @@ int read_label_file(std::string filename, std::vector<int>& label) {
 
 // insert a certain edge to edge_map. Output the correspondant face pair if found one. 
 int insert(size_t edge_key, int current_face,
-	std::unordered_map<size_t, int>& edge_map, Adj_list& adj_list)
+	std::unordered_map<size_t, int>& edge_map, Adj_face_list& adj_list)
 {
 	std::unordered_map<size_t, int>::iterator map_it = edge_map.find(edge_key);
 	if (map_it == edge_map.end()) edge_map[edge_key] = current_face; //the 1st face
@@ -104,8 +105,8 @@ int insert(size_t edge_key, int current_face,
 	return 0;
 }
 
-// build face adjecent list
-int build_adj_list(const Model& model, Adj_list& adj_list) {
+
+int build_adj_list(const Model& model, Adj_face_list& adj_list) {
 	adj_list.clear();
 	adj_list.resize(model.faces.size()/10, std::vector<int>());
 	std::unordered_map<size_t, int> edge_map; // key: undirected edge, value: face_index
@@ -129,9 +130,9 @@ int build_adj_list(const Model& model, Adj_list& adj_list) {
 		if (insert(edge_key2, i, edge_map, adj_list) == -1) return -1;
 	}
 	
-#if 1
+#if 0
 	int count_greater3 = 0, count_less1 = 0;
-	loop(i, adj_list.size()) {
+	tex_loop(i, adj_list.size()) {
 		if (adj_list[i].size() > 3) {
 			count_greater3++;
 		}
@@ -141,7 +142,6 @@ int build_adj_list(const Model& model, Adj_list& adj_list) {
 	}
 	LOGI("Greater than 3 face count: %d.\n  Less than 3 face count : %d.", count_greater3, count_less1);
 #endif
-
 	return 0;
 }
 
@@ -206,83 +206,6 @@ int load_view(std::string path, std::vector<View>& view_list) {
 	return 0;
 }
 
-// find connected faces which are of the same label
-int find_connected_area(const Adj_list& adj_list, const std::vector<int>& label,
-	std::vector<CArea>& area_list/*, std::vector<int>& patch*/) {
-
-	area_list.clear();
-	if (adj_list.size() == 0) {
-		LOGE("adj_list is empty!");
-		return -1;
-	}
-	if (adj_list.size() != label.size()) {
-		LOGE("Incorrect size. adj_list.size(): %d,  label.size(): %d", adj_list.size(), label.size());
-		return -1;
-	}
-	std::vector<int> flag(adj_list.size(), 0);
-	std::queue<int> bfs_queue;
-	loop(i, adj_list.size()) {
-		if (flag[i] == 1) continue;
-		// a new area
-		CArea current_area;
-
-		// bfs search
-		bfs_queue.push(i);
-		flag[i] = 1;
-		const int& current_label = label[i];
-		current_area.faces.push_back(i);
-		current_area.label = current_label;
-		
-
-		while (!bfs_queue.empty()) {
-			int current_face = bfs_queue.front();
-			bfs_queue.pop();
-			loop(j, adj_list[current_face].size()) {
-				const int &adj_face_index = adj_list[current_face][j];
-				if (flag[adj_face_index] == 0 && label[adj_face_index] == current_label) {
-					bfs_queue.push(adj_face_index);
-					flag[adj_face_index] = 1;
-					current_area.faces.push_back(adj_face_index);
-				}
-			}
-		}
-		area_list.push_back(current_area);
-	}
-	//patch.clear();
-	//patch.resize(label.size());
-	//loop(i, area_list.size()) {
-	//	loop(j, area_list[i].faces.size()) {
-	//		const int& face = area_list[i].faces[j];
-	//		patch[face] = i;
-	//	}
-	//}
-	//std::sort(area_list.begin(), area_list.end(),
-	//	[](CArea& v1, CArea& v2) {v1.faces.size() > v2.faces.size(); });
-	return 0;
-}
-
-// change the data structure, fastly search which patch a face belong
-void generate_patch_list(const std::vector<CArea>& area_list, int face_num, std::vector<int>& patch) {
-	patch.clear();
-	patch.resize(face_num);
-	loop(i, area_list.size()) {
-		loop(j, area_list[i].faces.size()) {
-			patch[area_list[i].faces[j]] = i;
-		}
-	}
-}
-
-
-void vertex_info_map_to_vec(const std::unordered_multimap<int, VInfo>& vertex_info_list,
-	std::vector<VInfo> &vertex_infos) {
-	vertex_infos.clear();
-	vertex_infos.resize(vertex_info_list.size());
-	int index = 0;
-	for (auto it = vertex_info_list.begin(); it != vertex_info_list.end(); ++it) {
-		vertex_infos[index] = it->second;
-		++index;
-	}
-}
 
 int write_obj(std::string filename, const Model& model, int page_num) {
 	std::ofstream out(filename.c_str(), std::ios::out);
@@ -315,11 +238,10 @@ int write_obj(std::string filename, const Model& model, int page_num) {
 		const int &page = faces[ii + 9];
 		pages[page].push_back(ii);
 	}
-	//for (auto it = pages.begin(); it != pages.end(); ++it) {
+	LOGI("Total texture pages: %d", pages.size());
 
-	//}
-	loop(p, pages.size()) {
-		std::cout << "page = " << p << std::endl;
+	tex_loop(p, pages.size()) {
+		
 		out << "newmtl m" << p << std::endl;
 		for (auto it = pages[p].begin(); it != pages[p].end(); ++it){
 			int &ii = *it;
@@ -335,9 +257,87 @@ int write_obj(std::string filename, const Model& model, int page_num) {
 	return 0;
 }
 
+void write_mtl(std::string filename, int texture_num) {
+	std::ofstream fout(filename);
+	tex_loop(i, texture_num) {
+		fout << "newmtl m";
+		fout << std::setfill('0') << std::setw(4) << i << std::endl;
+		fout << "Ka 1.000000 1.000000 1.000000" << std::endl;
+		fout << "Kd 1.000000 1.000000 1.000000" << std::endl;
+		fout << "Ks 0.000000 0.000000 0.000000" << std::endl;
+		fout << "Tr 0.000000" << std::endl;
+		fout << "illum 1" << std::endl;
+		fout << "Ns 1.000000" << std::endl;
+		fout << "map_Kd ";
+		fout << std::setfill('0') << std::setw(4) << i;
+		fout << ".png" << std::endl;
+	}
+}
+
 void write_texture(std::string path, const std::vector<cv::Mat>& texture_imgs) {
-	loop(i, texture_imgs.size()) {
-		std::string filename = path + "/" + std::to_string(i) + ".png";
+	tex_loop(i, texture_imgs.size()) {
+		
+		std::ostringstream ostr;
+		ostr << std::setfill('0') << std::setw(4) << i;
+		std::string filename = path + "/" + ostr.str() + ".png";
 		cv::imwrite(filename, texture_imgs[i]);
 	}
+}
+
+void write_pile(std::string filename, std::string filename_labeling, Model mesh, std::vector<int>& labeling) {
+
+	std::ofstream out(filename.c_str(), std::ios::binary);
+	if (!out.good()) {
+		LOGE("piling failed");
+		return;
+	}
+
+	std::ofstream out_label(filename_labeling.c_str(), std::ios::binary);
+	if (!out_label.good()) {
+		LOGE("piling failed");
+		return;
+	}
+
+	std::vector<Eigen::Vector3f> const & mesh_vertices = mesh.vertices;
+	std::vector<Eigen::Vector3f> const & mesh_normals = mesh.normals;
+	std::vector<int> const & mesh_faces = mesh.faces;
+	std::vector<int> mesh_vertices_color;
+	mesh_vertices_color.resize(mesh_vertices.size());
+
+	size_t num_faces = mesh_faces.size() / 10;
+
+	Eigen::Vector3f palette[6] = {
+		Eigen::Vector3f(0 ,0 ,0) / 255.0f, //black
+		Eigen::Vector3f(255 ,0 ,0) / 255.0f, //red
+		Eigen::Vector3f(0 ,255 ,0) / 255.0f, //green
+		Eigen::Vector3f(0 ,0 ,255) / 255.0f, //blue
+		Eigen::Vector3f(255 ,255 ,0) / 255.0f, //yellow
+		Eigen::Vector3f(255 ,0 ,255) / 255.0f, //pink
+	};
+	for (int i = 0, ii = 0; i < num_faces; ++i, ii += 10) {
+		for (int j = 0; j < 3; ++j) {
+			mesh_vertices_color[mesh_faces[ii + j]] = labeling[i];
+		}
+	}
+	for (int i = 0; i < mesh_vertices.size(); ++i) {
+		out << "v ";
+		out << mesh_vertices[i][0] << " " << mesh_vertices[i][1] << " " << mesh_vertices[i][2];
+		out << " " << palette[mesh_vertices_color[i]][0] << " " << palette[mesh_vertices_color[i]][1] << " " << palette[mesh_vertices_color[i]][2];
+		out << std::endl;
+	}
+	for (int i = 0; i < mesh_normals.size(); ++i) {
+		out << "vn ";
+		out << mesh_normals[i][0] << " " << mesh_normals[i][1] << " " << mesh_normals[i][2] << std::endl;
+	}
+	for (int i = 0, ii = 0; i < num_faces; ++i, ii += 10) {
+		out << "f ";
+		out << mesh_faces[ii + 0] + 1 << "/" << mesh_faces[ii + 0] + 1 << " ";
+		out << mesh_faces[ii + 1] + 1 << "/" << mesh_faces[ii + 1] + 1 << " ";
+		out << mesh_faces[ii + 2] + 1 << "/" << mesh_faces[ii + 2] + 1;
+		out << std::endl;
+		out_label << labeling[i] << std::endl;
+
+	}
+	out.close();
+	out_label.close();
 }

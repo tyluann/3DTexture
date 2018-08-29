@@ -1,0 +1,3 @@
+[Log Info] [File:f:\workspace\cpp_project\3dtexture3\src\texture.cpp, Line:42] Labelling time: 5.428000s
+[Log Info] [File:f:\workspace\cpp_project\3dtexture3\src\texture.cpp, Line:50] Seamless texturing time: 0.731000s
+[Log Info] [File:f:\workspace\cpp_project\3dtexture3\src\helper_impl.cpp, Line:241] Total texture pages: 1

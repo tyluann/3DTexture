@@ -1,11 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerCommandArguments>$(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\01_test.obj $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\01.label $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\rgb_final $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out\seamless_test_out</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>$(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\mesh.obj $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\rgb_cam $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out  $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\label.txt &gt;$(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out\log.txt</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LocalDebuggerCommandArguments>$(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out\out1\01_test.obj $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out\out1\01.label $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\rgb_final $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out\seamless_test_out</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>$(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\mesh.obj $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\rgb_cam $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out  $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\label.txt &gt;$(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out\log.txt</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
 </Project>

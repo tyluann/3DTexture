@@ -15,13 +15,22 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\color_adjustment.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\demo.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\helper_impl.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\seamless_texturing.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\texture_generator.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\labelling.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\graph.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\texture.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
@@ -29,10 +38,10 @@
     <ClInclude Include="..\src\common.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\color_adjustment.h">
+    <ClInclude Include="..\src\helper.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\helper.h">
+    <ClInclude Include="..\src\texture.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
