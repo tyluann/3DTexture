@@ -304,13 +304,15 @@ void write_pile(std::string filename, std::string filename_labeling, Model mesh,
 
 	size_t num_faces = mesh_faces.size() / 10;
 
-	Eigen::Vector3f palette[6] = {
+	Eigen::Vector3f palette[100] = {
 		Eigen::Vector3f(0 ,0 ,0) / 255.0f, //black
 		Eigen::Vector3f(255 ,0 ,0) / 255.0f, //red
 		Eigen::Vector3f(0 ,255 ,0) / 255.0f, //green
 		Eigen::Vector3f(0 ,0 ,255) / 255.0f, //blue
 		Eigen::Vector3f(255 ,255 ,0) / 255.0f, //yellow
 		Eigen::Vector3f(255 ,0 ,255) / 255.0f, //pink
+		Eigen::Vector3f(0 ,255 ,255) / 255.0f, //cyan
+		Eigen::Vector3f(255 ,255 ,255) / 255.0f, //white
 	};
 	for (int i = 0, ii = 0; i < num_faces; ++i, ii += 10) {
 		for (int j = 0; j < 3; ++j) {
