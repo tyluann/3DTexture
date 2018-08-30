@@ -3,6 +3,7 @@
 #include <mapmap/full.h>
 #include <acc/bvh_tree.h>
 #include <fstream>
+#include <algorithm>
 
 int labelling(const Model &model, const Adj_face_list &adj_face_list, 
 	const std::vector<View>& views, std::vector<int>& labels)
@@ -35,7 +36,9 @@ int labelling(const Model &model, const Adj_face_list &adj_face_list,
 	tex_loop(i, graph.faces_num){
 		//if the face has no good view, ignore it
 		if (!graph.b_good_face[i]) continue;
-		std::vector<int> adj_faces = adj_face_list[i];
+		std::vector<int> adj_faces_t = adj_face_list[i];
+		auto it = std::unique(adj_faces_t.begin(), adj_faces_t.end());
+		std::vector<int> adj_faces(adj_faces_t.begin(), it);
 		tex_loop(j, adj_faces.size())
 		{
 			int adj_face_idx = adj_faces[j];

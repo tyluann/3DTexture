@@ -60,11 +60,8 @@ int read_obj_model(std::string filename, Model& model) {
 			}
 			
 			std::vector<int> one_face({ f[0], f[1], f[2], f[3], f[4], f[5], 0, 0, 0, 0 });// dont need texcoord
-			model.faces.insert(model.faces.end(), one_face.begin(), one_face.end());
-			//if (space != std::string::npos && !line.empty()) { //label(optional)
-			//	int label = std::stoi(line);
-			//	model.faces_label.push_back(label);
-			//}
+			if (f[0] != f[1] && f[1] != f[2] && f[2] != f[0])
+				model.faces.insert(model.faces.end(), one_face.begin(), one_face.end());
 		}
 	}
 
@@ -242,7 +239,8 @@ int write_obj(std::string filename, const Model& model, int page_num) {
 
 	tex_loop(p, pages.size()) {
 		
-		out << "newmtl m" << p << std::endl;
+		out << "usemtl m";
+		out << std::setfill('0') << std::setw(4) << p << std::endl;
 		for (auto it = pages[p].begin(); it != pages[p].end(); ++it){
 			int &ii = *it;
 			out << "f ";
