@@ -188,8 +188,9 @@ void Texture_generator::calculate_bboxes(const Model& model) {
 		
 		BBox bbox;
 		bbox.patch_index = i;
-		bbox.bb[0] = std::floor(minx);
-		bbox.bb[1] = std::floor(miny);
+		// dilate 1 to avoid rendering problems
+		bbox.bb[0] = std::floor(minx) - 1;
+		bbox.bb[1] = std::floor(miny) - 1;
 		bbox.bb[2] = std::ceil(maxx) - bbox.bb[0] + 1;
 		bbox.bb[3] = std::ceil(maxy) - bbox.bb[1] + 1;
 
@@ -362,8 +363,8 @@ void Texture_generator::generate_texcoord(const Model& src_model, Model& dst_mod
 			tex_loop(k, 3) {
 				const int &vertex = faces[face + k];
 				const int &vertex_index = sub_vertex_table[vertex].find(label)->second;
-				float u = (vertex_infos[vertex_index].x + texture_map[i].x) / (texture_width - 1);
-				float v = (vertex_infos[vertex_index].y + texture_map[i].y) / (texture_height - 1);
+				float u = (vertex_infos[vertex_index].x + texture_map[i].x) / (texture_width - 0);
+				float v = (vertex_infos[vertex_index].y + texture_map[i].y) / (texture_height - 0);
 				texcoords.emplace_back(u, 1-v);
 				faces[face + k + 6] = texcoord_index;
 				++texcoord_index;
@@ -418,8 +419,9 @@ void Texture_generator::generate_texture(const Model& model, const std::vector<V
 			if (miny >= views[label - 1].img.rows) continue;// miny = views[label - 1].img.rows - 1;
 			if (miny < 0) continue;// miny = 0;
 
-			int face_bbox[4] = { std::floor(minx), std::floor(miny),
-				std::ceil(maxx) - std::floor(minx), std::ceil(maxy) - std::floor(miny) };
+			// dilate 1 to avoid rendering problems
+			int face_bbox[4] = { std::floor(minx) - 1, std::floor(miny) - 1,
+				std::ceil(maxx) - std::floor(minx) + 2, std::ceil(maxy) - std::floor(miny) + 2 };
 			if (face_bbox[2] == 0 || face_bbox[3] == 0)
 				continue;
 
@@ -427,7 +429,7 @@ void Texture_generator::generate_texture(const Model& model, const std::vector<V
 			// use begin&end pixel of each row to represent mask. 
 			std::vector<std::pair<int, int>> begin_end_vec(face_bbox[3]);
 			{
-				std::vector<std::pair<int, int>> begin_end_vec_raw(face_bbox[3]);
+				std::vector<std::pair<int, int>> begin_end_vec_raw(face_bbox[3] + 2);
 
 				VInfo v0 = vinfo[0];
 				VInfo v1 = vinfo[1];
@@ -460,8 +462,8 @@ void Texture_generator::generate_texture(const Model& model, const std::vector<V
 					if (x0 > v1.x) std::swap(begin, end);
 					begin = std::max(begin, static_cast<float>(face_bbox[0]));
 					end = std::min(end, static_cast<float>(face_bbox[0] + face_bbox[2]));
-					begin_end_vec_raw[y - face_bbox[1]]
-						= std::pair<int, int>(std::ceil(begin) - 1, std::floor(end) + 1); // x dilation
+					begin_end_vec_raw[y - face_bbox[1] + 1]
+						= std::pair<int, int>(std::floor(begin) - 1, std::ceil(end) + 1); // x dilation
 				}
 				for (int y = std::ceil(v1.y); y < face_bbox[1] + face_bbox[3]; ++y) {
 					float begin = L1[1] * y + L1[2];
@@ -469,44 +471,28 @@ void Texture_generator::generate_texture(const Model& model, const std::vector<V
 					if (x0 > v1.x) std::swap(begin, end);
 					begin = std::max(begin, static_cast<float>(face_bbox[0]));
 					end = std::min(end, static_cast<float>(face_bbox[0] + face_bbox[2]));
-					begin_end_vec_raw[y - face_bbox[1]] 
-						= std::pair<int, int>(std::ceil(begin) - 1, std::floor(end) + 1); // x dilation
+					begin_end_vec_raw[y - face_bbox[1] + 1]
+						= std::pair<int, int>(std::floor(begin) - 1, std::ceil(end) + 1); // x dilation
 				}
 				// y dilation. to avoid black edge between patches
-				if (begin_end_vec_raw.size() <= 1) {
-					begin_end_vec = begin_end_vec_raw;
-				}
-				else {
-					for (int s = 1; s < begin_end_vec_raw.size() - 1; ++s) {
-						begin_end_vec[s] = std::pair<int, int>(
-							std::min(std::min(
-								begin_end_vec_raw[s].first,
-								begin_end_vec_raw[s - 1].first),
-								begin_end_vec_raw[s + 1].first)
-							,
-							std::max(std::max(
-								begin_end_vec_raw[s].second,
-								begin_end_vec_raw[s - 1].second),
-								begin_end_vec_raw[s + 1].second)
-							);
+				begin_end_vec_raw[0] = std::pair<int, int>(INT_MAX, 0);
+				begin_end_vec_raw[begin_end_vec_raw.size() - 1] = std::pair<int, int>(INT_MAX, 0);
+				for (int s1 = 1; s1 < begin_end_vec_raw.size() - 1; ++s1) {
+					int begin = INT_MAX;
+					int end = 0;
+					for (int s2 = -1; s2 <= 1; ++s2) {
+						if (begin_end_vec_raw[s1 + s2].first < begin) begin = begin_end_vec_raw[s1 + s2].first;
+						if (begin_end_vec_raw[s1 + s2].second > end) end = begin_end_vec_raw[s1 + s2].second;
 					}
-
-					begin_end_vec[0] = std::pair<int, int>(
-						std::min(begin_end_vec_raw[0].first, begin_end_vec_raw[1].first),
-						std::max(begin_end_vec_raw[0].second, begin_end_vec_raw[1].second));
-					begin_end_vec[begin_end_vec_raw.size() - 1] = std::pair<int, int>(
-						std::min(begin_end_vec_raw[begin_end_vec_raw.size() - 1].first,
-							begin_end_vec_raw[begin_end_vec_raw.size() - 2].first),
-						std::max(begin_end_vec_raw[begin_end_vec_raw.size() - 1].second,
-							begin_end_vec_raw[begin_end_vec_raw.size() - 2].second));
+					begin_end_vec[s1 - 1] = std::pair<int, int>(begin, end);
 				}
 
-				//tex_loop(k, begin_end_vec.size()) {
-				//	begin_end_vec[k].first = std::max(begin_end_vec[k].first, face_bbox[0]);
-				//	begin_end_vec[k].first = std::min(begin_end_vec[k].first, face_bbox[0] + face_bbox[2] - 1);
-				//	begin_end_vec[k].second = std::max(begin_end_vec[k].second, face_bbox[1]);
-				//	begin_end_vec[k].second = std::min(begin_end_vec[k].second, face_bbox[1] + face_bbox[3] - 1);
-				//}
+				tex_loop(k, begin_end_vec.size()) {
+					begin_end_vec[k].first = std::max(begin_end_vec[k].first, face_bbox[0]);
+					begin_end_vec[k].first = std::min(begin_end_vec[k].first, face_bbox[0] + face_bbox[2] - 1);
+					begin_end_vec[k].second = std::max(begin_end_vec[k].second, face_bbox[0]);
+					begin_end_vec[k].second = std::min(begin_end_vec[k].second, face_bbox[0] + face_bbox[2] - 1);
+				}
 			}
 
 			//3. find delta_color plane for 3 channels 

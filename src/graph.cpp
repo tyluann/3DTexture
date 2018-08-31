@@ -24,8 +24,8 @@ float get_face_area(const Model& model, const std::vector<Eigen::Vector2f>& uvs,
 	tex_loop(i, 3) {
 		const int& vertex = model.faces[10 * face + i];
 		uv[i] = uvs[vertex];
-		if (uv[i][0] >= view.img.cols || uv[i][0] < 0 ||
-			uv[i][1] >= view.img.rows || uv[i][1] < 0)
+		if (uv[i][0] >= view.img.cols - 1 || uv[i][0] < 1 ||
+			uv[i][1] >= view.img.rows - 1 || uv[i][1] < 1)
 		{
 			return -1.0f;
 		}
