@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 	build_adj_list(model, adj_face_list);
 
 	std::vector<int> labels;
-#if 0
+#ifdef TEX_DEBUG
 	read_label_file(label_file, labels);
 #else
 	t0 = clock();

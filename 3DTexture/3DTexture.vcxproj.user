@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LocalDebuggerCommandArguments>$(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\mesh.obj $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\rgb_cam $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out  $(SolutionDir)dataset\rgbd_dataset_freiburg1_teddy\out\label.txt</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>$(SolutionDir)dataset\rgbd_dataset_freiburg1_room\mesh.obj $(SolutionDir)dataset\rgbd_dataset_freiburg1_room\rgb_cam $(SolutionDir)dataset\rgbd_dataset_freiburg1_room\out  $(SolutionDir)dataset\rgbd_dataset_freiburg1_room\out\label.txt</LocalDebuggerCommandArguments>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

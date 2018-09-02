@@ -83,7 +83,7 @@ cv::Vec3f get_color(const cv::Mat& img, float x, float y) {
 }
 
 
-void Texture_generator::vertices_prepare(const std::vector<View>& view, const Model& model, const std::vector<int>& label)
+void Texture_generator::vertices_prepare(const std::vector<View>& views, const Model& model, const std::vector<int>& label)
 {
 	// unorder adjacent list of vertex in the every label seperately
 	std::unordered_multimap<int, VInfo> info_map;
@@ -113,10 +113,10 @@ void Texture_generator::vertices_prepare(const std::vector<View>& view, const Mo
 
 						//insert vertex color
 						if (label[i] > 0) {
-							const Eigen::Matrix3f& R = view[label[i] - 1].R;
-							const Eigen::Vector3f& t = view[label[i] - 1].t;
-							const Eigen::Matrix3f& K = view[label[i] - 1].K;
-							const cv::Mat& img = view[label[i] - 1].img;
+							const Eigen::Matrix3f& R = views[label[i] - 1].R;
+							const Eigen::Vector3f& t = views[label[i] - 1].t;
+							const Eigen::Matrix3f& K = views[label[i] - 1].K;
+							const cv::Mat& img = views[label[i] - 1].img;
 							Eigen::Vector3f p_cam = R * p + t;
 							Eigen::Vector3f p_img = K * p_cam;
 							p_img /= p_cam(2);
@@ -138,7 +138,7 @@ void Texture_generator::vertices_prepare(const std::vector<View>& view, const Mo
 
 					// insert vertex adj list
 					tex_loop(k, 3) {
-						if(v[k] > v[j]) it->second.adj_vertices.insert(v[k]);
+						if(v[k] != v[j]) it->second.adj_vertices.insert(v[k]);
 					}
 					break;
 				}
@@ -166,6 +166,49 @@ void Texture_generator::vertices_prepare(const std::vector<View>& view, const Mo
 		vertex_infos[index] = it->second;
 		++index;
 	}
+	
+#ifdef NEW_SEAMLESS
+	// use weighted average color as vertex color
+	tex_loop(i, vertex_infos.size()) {
+		const int &v_index = vertex_infos[i].v_index;
+		const std::map<int, int>& map_vertex = sub_vertex_table[v_index];
+		if (map_vertex.size() < 2) {
+			vertex_infos[i].color_ave = vertex_infos[i].color;
+			continue;
+		}
+		const int &vertex_label = vertex_infos[i].label;
+		cv::Vec3f color_ave = vertex_infos[i].color;
+		const std::set<int>& adj_vertices = vertex_infos[i].adj_vertices;
+		float edge_sample_weight = 1;
+		for (auto it = adj_vertices.begin(); it != adj_vertices.end(); ++it) {
+			if (this->sub_vertex_table[*it].size() > 1 ) { // adj vertices which are on patch edges.
+				const int& sub_vertex = sub_vertex_table[*it].find(vertex_label)->second;
+				const VInfo &vinfo = this->vertex_infos[sub_vertex];
+				const float &x0 = vertex_infos[i].x;
+				const float &x1 = vinfo.x;
+				const float &y0 = vertex_infos[i].y;
+				const float &y1 = vinfo.y;
+
+				float d0 = sqrt((x0 - x1) * (x0 - x1) +
+					(vertex_infos[i].y - vinfo.y) * (vertex_infos[i].y - vinfo.y));
+				float dx = 0.5 * (x1 - x0) / d0;
+				float dy = 0.5 * (y1 - y0) / d0;
+				float dweight = 0.5 / d0;
+
+				for (float x = x0 + dx, y = y0 + dy, weight = 1.0f - dweight;
+					weight > 0 && (x - x1) * dx < 0 && (y - y1) * dy < 0;
+					x += dx, y += dy, weight -= dweight)
+				{
+					color_ave += get_color(views[vertex_label - 1].img, x, y) * weight;
+					edge_sample_weight += weight;
+				}
+			}
+		}
+		color_ave /= edge_sample_weight;
+		vertex_infos[i].color_ave = color_ave;
+	}
+#endif
+
 }
 
 void Texture_generator::calculate_bboxes(const Model& model) {
@@ -195,18 +238,11 @@ void Texture_generator::calculate_bboxes(const Model& model) {
 		bbox.bb[3] = std::ceil(maxy) - bbox.bb[1] + 1;
 
 		patch_bboxes.push_back(bbox);
-
-#if 0
-		if (maxx < 0) {
-			LOGE("something wrong.");
-		}
-
-#endif
 	}
 }
 
 
-void Texture_generator::color_adjustment_for_vertices(const Model& model) {
+void Texture_generator::color_adjustment_for_vertices(const Model& model, const std::vector<View>& views) {
 
 	delta_color.clear();
 
@@ -230,9 +266,11 @@ void Texture_generator::color_adjustment_for_vertices(const Model& model) {
 			const std::set<int>& adj_set = vertex_infos[i].adj_vertices;
 			for (auto adj_it = adj_set.begin(); adj_it != adj_set.end(); ++adj_it) {
 				int j = sub_vertex_table[*adj_it].find(label)->second;
-				T_Gamma.emplace_back(Gamma_rows, i, lambda);
-				T_Gamma.emplace_back(Gamma_rows, j, -lambda);
-				++Gamma_rows;
+				if (i < j) {
+					T_Gamma.emplace_back(Gamma_rows, i, lambda);
+					T_Gamma.emplace_back(Gamma_rows, j, -lambda);
+					++Gamma_rows;
+				}
 			}
 
 			// Load matrix A;
@@ -246,8 +284,13 @@ void Texture_generator::color_adjustment_for_vertices(const Model& model) {
 					T_A.emplace_back(A_rows, j, -1.0f);
 
 					// Load Vector f;
+#ifdef NEW_SEAMLESS
+					const cv::Vec3f &color_label = vertex_infos[i].color_ave;
+					const cv::Vec3f &color_label2 = vertex_infos[j].color_ave;
+#else
 					const cv::Vec3f &color_label = vertex_infos[i].color;
 					const cv::Vec3f &color_label2 = vertex_infos[j].color;
+#endif
 					tex_loop(k, 3) {
 						V_f[k].push_back(color_label2(k) - color_label(k));
 					}

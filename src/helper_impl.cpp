@@ -127,7 +127,7 @@ int build_adj_list(const Model& model, Adj_face_list& adj_list) {
 		if (insert(edge_key2, i, edge_map, adj_list) == -1) return -1;
 	}
 	
-#if 0
+#ifdef TEX_DEBUG
 	int count_greater3 = 0, count_less1 = 0;
 	tex_loop(i, adj_list.size()) {
 		if (adj_list[i].size() > 3) {

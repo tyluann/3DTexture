@@ -10,7 +10,7 @@ int seamless_texturing(const Model& src_model, const std::vector<View> &views, c
 
 	
 
-	tg.color_adjustment_for_vertices(src_model);
+	tg.color_adjustment_for_vertices(src_model, views);
 
 
 	tg.calculate_bboxes(src_model);

@@ -90,6 +90,68 @@ Eigen::Vector3f get_face_normal(const Model& model, int face)
 	return face_normal;
 }
 
+#ifdef NEW_LABELLING
+float face_grad_mean_color(const Model& model, const View &view, std::vector<Eigen::Vector2f>& uvs, int face,
+	bool need_mean_color, Eigen::Vector3f& mean_color) {
+	int vertices[3];
+	float maxx = -1, minx = 1e9, maxy = -1, miny = 1e9;
+	tex_loop(i, 3) {
+		const int &vertex = model.faces[10 * face + i];
+		const Eigen::Vector2f &uv = uvs[vertex];
+		if (uv[0] > maxx) maxx = uv[0];
+		if (uv[0] < minx) minx = uv[0];
+		if (uv[1] > maxy) maxy = uv[1];
+		if (uv[1] < miny) miny = uv[1];
+	}
+	cv::Rect rect(std::floor(minx), std::floor(miny), std::ceil(maxx) - std::floor(minx), std::ceil(maxy) - std::floor(miny));
+	//std::cout << rect << std::endl;
+	cv::Mat face_img = view.img(rect);
+
+	if (face_img.rows * face_img.cols == 0)return 0.0f;
+
+	if (need_mean_color) {
+		//mean color
+		float r = 0, g = 0, b = 0;
+		tex_loop(i, face_img.rows) {
+			cv::Vec3b* p = face_img.ptr<cv::Vec3b>(i);
+			tex_loop(j, face_img.cols) {
+				b += p[j][0];
+				g += p[j][1];
+				r += p[j][2];
+			}
+		}
+		b /= (face_img.rows * face_img.cols);
+		g /= (face_img.rows * face_img.cols);
+		r /= (face_img.rows * face_img.cols);
+
+		mean_color[0] = r;
+		mean_color[1] = g;
+		mean_color[2] = b;
+	}
+
+	cv::Mat face_img_gray;
+	cv::cvtColor(face_img, face_img_gray, CV_BGR2GRAY);
+	cv::Mat grad, grad_x, grad_y;
+	//cv::Mat abs_grad_x, abs_grad_y;
+
+	Sobel(face_img_gray, grad_x, CV_8UC1, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);
+	convertScaleAbs(grad_x, grad_x);
+	Sobel(face_img_gray, grad_y, CV_8UC1, 0, 1, 3, 1, 0, cv::BORDER_DEFAULT);
+	convertScaleAbs(grad_y, grad_y);
+	addWeighted(grad_x, 0.5, grad_y, 0.5, 0, grad);
+	float grad_ave = 0;
+	tex_loop(i, grad.rows) {
+		uchar* p = grad.ptr<uchar>(i);
+		tex_loop(j, grad.cols) {
+			grad_ave += static_cast<float>(p[j]);
+		}
+	}
+	grad_ave /= (grad.rows * grad.cols);
+	return grad_ave;
+}
+
+#endif
+
 // calculate data term of the energy function 
 int Graph::calculate_data_cost(const Model& model, const std::vector<View>& views)
 {
@@ -162,17 +224,89 @@ int Graph::calculate_data_cost(const Model& model, const std::vector<View>& view
 		}
 	}
 
+	float max_data_cost = 1.0f;
 	tex_loop(i, faces_num) {
+		int valid_count = 0;
 		tex_loop(j, views_num)
 		{
 			float_t normalize_face_area = face_areas[i][j];
 			if (max_area > 1e-6) normalize_face_area /= max_area;
-			data_costs[i][j + 1] = 1.0 - normalize_face_area;
-			if (data_costs[i][j + 1] < 0.0f) data_costs[i][j + 1] = 0.0f;
-			if (data_costs[i][j + 1] < 1.0f - 1e-6) {
+			data_costs[i][j + 1] = normalize_face_area;
+			if (data_costs[i][j + 1] > 1.0f) data_costs[i][j + 1] = 1.0f;
+			if (data_costs[i][j + 1] > 1e-6) {
 				valid_mask[i][j] = 1;
 				b_good_face[i] = 1;
+				++valid_count;
 			}
+		}
+#ifdef NEW_LABELLING
+		float C = 1e3;
+		std::vector<Eigen::Vector3f> mean_colors;
+		
+		tex_loop(j, views_num)
+		{
+			if (valid_mask[i][j] == 1) {
+				Eigen::Vector3f mean_color = { 0.0f, 0.0f, 0.0f };
+				float grad = face_grad_mean_color(model, views[j], views_uvs[j], i, valid_count > 2, mean_color);
+				mean_colors.push_back(mean_color);
+				data_costs[i][j + 1] *= C + grad;
+				if (max_data_cost < data_costs[i][j + 1]) max_data_cost = data_costs[i][j + 1];
+			}
+		}
+		while (valid_count > 2) {
+			Eigen::Matrix3f cov;
+			Eigen::MatrixXf X(valid_count, 3);
+			int row = 0;
+			tex_loop(j, views_num) {
+				if (valid_mask[i][j] == 1) {
+					X(row, 0) = mean_colors[j][0];
+					X(row, 1) = mean_colors[j][1];
+					X(row, 2) = mean_colors[j][2];
+					++row;
+				}
+			}
+			Eigen::MatrixXf meanVec = X.colwise().mean();
+			Eigen::RowVectorXf meanVecRow(Eigen::RowVectorXf::Map(meanVec.data(), X.cols()));
+
+			Eigen::MatrixXf zeroMeanMat = X;
+			zeroMeanMat.rowwise() -= meanVecRow;
+			if (X.rows() == 1)
+				cov = (zeroMeanMat.adjoint()*zeroMeanMat) / double(X.rows());
+			else
+				cov = (zeroMeanMat.adjoint()*zeroMeanMat) / double(X.rows() - 1);
+
+			bool flag = false;
+			tex_loop(j, views_num) {
+				if (valid_mask[i][j] == 1) {
+					Eigen::Matrix<float, 3, 1> tmp0= mean_colors[j] - meanVec.transpose();
+					Eigen::MatrixXf tmp = tmp0.transpose()* cov * tmp0;
+					//std::cout << tmp.size() << std::endl;
+					float multi_variate_gaussian_function = exp(-0.5 * tmp(0, 0));
+					if (multi_variate_gaussian_function > 6e-3) {
+						valid_mask[i][j] = 0;
+						valid_count--;
+						data_costs[i][j + 1] = 0.0f;
+						flag = true;
+						if (valid_count < 2) break;
+					}
+				}
+			}
+			if (!flag) {
+				break;
+			}
+		}
+#endif
+	}
+#ifdef NEW_LABELLING
+	tex_loop(i, faces_num) {
+		tex_loop(j, views_num) {
+			data_costs[i][j + 1] /= max_data_cost;
+		}
+	}
+#endif
+	tex_loop(i, faces_num) {
+		tex_loop(j, views_num) {
+			data_costs[i][j + 1] = 1 - data_costs[i][j + 1];
 		}
 	}
 	return 0;

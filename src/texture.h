@@ -43,6 +43,7 @@ typedef struct SUB_Vertex_info { // sub-vertex color, index, uv coordinates, adj
 	float x, y;
 	//int patch;
 	cv::Vec3f color;
+	cv::Vec3f color_ave;
 	std::set<int> adj_vertices;
 
 	SUB_Vertex_info() :label(-1), v_index(-1) {};
@@ -100,7 +101,7 @@ public:
 	int find_connected_area(const Adj_face_list& adj_face_list, const std::vector<int>& label);
 
 	// compute the topology_info, color_info and patch info for each vertex (for color adjustment)
-	void vertices_prepare(const std::vector<View>& view, const Model& model, const std::vector<int>& label);
+	void vertices_prepare(const std::vector<View>& views, const Model& model, const std::vector<int>& label);
 
 	// calculate bounding boxes for image patches
 	void calculate_bboxes(const Model& model);
@@ -109,7 +110,7 @@ public:
 	int patch_arrange();
 
 
-	void color_adjustment_for_vertices(const Model& model);
+	void color_adjustment_for_vertices(const Model& model, const std::vector<View>& views);
 
 	// generate uv texcoord for model and renderer to show texture
 	void generate_texcoord(const Model& src_model, Model& dst_model);
